@@ -1,0 +1,31 @@
+{
+  "name": "agent-server",
+  "version": "1.0.0",
+  "description": "Unified MCP entry point for Odoo inventory and sales agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales",
+    "build": "tsc",
+    "prestart": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales && npm run build",
+    "start": "node dist/index.js",
+    "predev": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "agent-core": "file:../agent-core",
+    "agent-inventory": "file:../agent-inventory",
+    "agent-sales": "file:../agent-sales",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.12.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

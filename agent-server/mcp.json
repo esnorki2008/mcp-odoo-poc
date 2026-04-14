@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "odoo-agent-inventory": {
+      "type": "http",
+      "url": "http://localhost:3000/inventory/mcp"
+    },
+    "odoo-agent-sales": {
+      "type": "http",
+      "url": "http://localhost:3000/sales/mcp"
+    }
+  }
+}

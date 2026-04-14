@@ -1,0 +1,16 @@
+{
+  "name": "odoo-mcp-monorepo",
+  "private": true,
+  "workspaces": [
+    "agent-core",
+    "agent-inventory",
+    "agent-sales",
+    "agent-server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales && npm run build --workspace agent-server",
+    "dev:inventory": "npm run dev --workspace agent-inventory",
+    "dev:sales": "npm run dev --workspace agent-sales",
+    "dev:server": "npm run dev --workspace agent-server"
+  }
+}

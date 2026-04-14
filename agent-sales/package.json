@@ -1,0 +1,33 @@
+{
+  "name": "agent-sales",
+  "version": "1.0.0",
+  "description": "MCP sales reporting tools for Odoo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "npm run build --workspace agent-inventory",
+    "build": "tsc",
+    "prestart": "npm run build --workspace agent-inventory && npm run build",
+    "start": "node -e \"console.error('agent-sales is a library package for agent-server. Start agent-server instead.'); process.exit(1)\"",
+    "predev": "npm run build --workspace agent-inventory",
+    "dev": "node -e \"console.error('agent-sales is a library package for agent-server. Start agent-server instead.'); process.exit(1)\""
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "agent-inventory": "file:../agent-inventory",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "zod": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.12.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "agent-core",
+  "version": "1.0.0",
+  "description": "Shared infrastructure utilities for Odoo MCP agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node -e \"console.error('agent-core is a library package.'); process.exit(1)\"",
+    "dev": "node -e \"console.error('agent-core is a library package.'); process.exit(1)\""
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "agent-inventory": "file:../agent-inventory",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  }
+}
