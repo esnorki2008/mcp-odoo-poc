@@ -8,10 +8,13 @@ export class OdooXmlRpcAdapter implements InventoryPort {
   private username: string;
   private password: string;
   private uid: number | null = null;
+  private authentication: Promise<number> | null = null;
   private commonClient: xmlrpc.Client;
   private objectClient: xmlrpc.Client;
 
-  constructor(url: string, db: string, username: string, password: string) {
+  constructor(url: string, db: string, username: string, password: string, private readonly timeoutMs = 30000) {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error('timeoutMs must be positive');
+    url = url.replace(/\/+$/, '');
     this.url = url;
     this.db = db;
     this.username = username;
@@ -43,83 +46,60 @@ export class OdooXmlRpcAdapter implements InventoryPort {
     };
   }
 
-  private async authenticate(): Promise<number> {
-    if (this.uid !== null) {
-      return this.uid;
-    }
-
-    console.log('[Odoo] Authenticating', {
-      url: this.url,
-      db: this.db,
-      username: this.username,
-    });
-
+  private async rpc(client: xmlrpc.Client, method: string, params: any[]): Promise<any> {
+    const controller = new AbortController();
+    // Isolate mutable headers for concurrent XML-RPC requests.
+    const options = { ...client.options, headers: { ...client.options.headers }, signal: controller.signal };
+    const requestClient = client.isSecure ? xmlrpc.createSecureClient(options) : xmlrpc.createClient(options);
     return new Promise((resolve, reject) => {
-      this.commonClient.methodCall(
-        'authenticate',
-        [this.db, this.username, this.password, {}],
-        (error, value) => {
+      const timer = setTimeout(() => {
+        reject(new Error('Odoo request timed out. For inventory writes, check current stock before retrying; the operation may have completed.'));
+        controller.abort();
+      }, this.timeoutMs);
+      try {
+        requestClient.methodCall(method, params, (error, value) => {
+          clearTimeout(timer);
           if (error) {
-            console.error('[Odoo] Authentication error:', error);
-            reject(error);
-          } else if (!value) {
-            reject(new Error('Authentication failed: Invalid credentials or database'));
-          } else {
-            this.uid = value as number;
-            console.log('[Odoo] Authentication OK', { uid: this.uid });
-            resolve(this.uid);
-          }
-        }
-      );
+            const message = error instanceof Error ? error.message : String(error);
+            reject(new Error(this.password ? message.split(this.password).join('[redacted]') : message));
+          } else resolve(value);
+        });
+      } catch (error) {
+        clearTimeout(timer);
+        reject(new Error('Could not serialize or send the Odoo request'));
+      }
     });
   }
 
-  public async testOdooConnection(): Promise<void> {
-    try {
-      await this.authenticate();
-      console.log(`[Odoo] Conexión y autenticación exitosa en la API de Odoo: ${this.url}`);
-    } catch (error: any) {
-      console.error(`[Odoo] Falla al conectar con la API de Odoo:`, error.message);
-      throw error;
+  private async authenticate(): Promise<number> {
+    if (this.uid !== null) return this.uid;
+    if (!this.authentication) {
+      this.authentication = this.rpc(this.commonClient, 'authenticate', [this.db, this.username, this.password, {}])
+        .then(value => {
+          if (!Number.isInteger(value) || value <= 0) {
+            throw new Error('Authentication failed: check ODOO_DB, ODOO_USERNAME and ODOO_PASSWORD');
+          }
+          this.uid = value;
+          return value as number;
+        })
+        .finally(() => { this.authentication = null; });
     }
+    return this.authentication;
+  }
+
+  public async testOdooConnection(): Promise<void> {
+    await this.authenticate();
   }
 
   public async callKw(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
     const uid = await this.authenticate();
-    console.log('[Odoo] execute_kw ->', {
-      model,
-      method,
-      argsPreview: Array.isArray(args) ? JSON.stringify(args).slice(0, 300) : null,
-      kwargs,
-    });
-    return new Promise((resolve, reject) => {
-      this.objectClient.methodCall(
-        'execute_kw',
-        [this.db, uid, this.password, model, method, args, kwargs],
-        (error, value) => {
-          if (error) {
-            console.error('[Odoo] execute_kw error ->', {
-              model,
-              method,
-              error,
-            });
-            reject(error);
-          } else {
-            console.log('[Odoo] execute_kw OK ->', {
-              model,
-              method,
-            });
-            resolve(value);
-          }
-        }
-      );
-    });
+    return this.rpc(this.objectClient, 'execute_kw', [this.db, uid, this.password, model, method, args, kwargs]);
   }
 
   public async searchRead<T = any>(
     model: string,
     domain: any[],
-    options: { fields?: string[]; limit?: number; order?: string } = {}
+    options: { fields?: string[]; limit?: number; offset?: number; order?: string } = {}
   ): Promise<T[]> {
     return this.callKw(model, 'search_read', [domain], options) as Promise<T[]>;
   }
@@ -149,6 +129,7 @@ export class OdooXmlRpcAdapter implements InventoryPort {
     
     const products = await this.searchRead<Product>('product.product', domain, {
       fields: fields,
+      order: 'id asc',
       limit: limit
     });
     
@@ -185,7 +166,10 @@ export class OdooXmlRpcAdapter implements InventoryPort {
       fields: ['id']
     });
 
-    if (quants && quants.length > 0) {
+    if (quants.length > 1) {
+      throw new Error('Multiple stock records match this product and location. Adjust the specific lot/package/owner in Odoo; no quantity was changed.');
+    }
+    if (quants.length > 0) {
       // Update existing quant
       const quantId = quants[0].id;
       await this.callKw('stock.quant', 'write', [[quantId], { inventory_quantity: quantity }]);

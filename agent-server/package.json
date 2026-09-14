@@ -5,15 +5,15 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prebuild": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales",
+    "prebuild": "npm run build --workspace agent-inventory && npm run build --workspace agent-core && npm run build --workspace agent-sales --ignore-scripts",
     "build": "tsc",
-    "prestart": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales && npm run build",
+    "prestart": "npm run build",
     "start": "node dist/index.js",
-    "predev": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales",
+    "predev": "npm run prebuild",
     "dev": "ts-node src/index.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "agent-core": "file:../agent-core",
     "agent-inventory": "file:../agent-inventory",
     "agent-sales": "file:../agent-sales",

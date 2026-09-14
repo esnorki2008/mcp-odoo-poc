@@ -111,25 +111,25 @@ export class SalesUseCases {
     granularity?: TimelineGranularity
   ): Promise<SalesTimelinePoint[]> {
     const range = this.resolveRange(preset, startDate, endDate);
-    const rows = await this.odoo.searchRead<SaleOrderRow>(
-      'sale.order',
-      this.buildSalesOrderDomain(range),
-      {
-        fields: ['date_order', 'amount_total'],
-        limit: 1000,
-        order: 'date_order asc',
-      }
-    );
-
     const effectiveGranularity = granularity ?? (preset === 'year' ? 'month' : 'day');
     const buckets = new Map<string, SalesTimelinePoint>();
 
-    for (const row of rows) {
-      const label = this.formatBucketLabel(row.date_order, effectiveGranularity);
-      const current = buckets.get(label) ?? { label, totalAmount: 0, orderCount: 0 };
-      current.totalAmount += row.amount_total ?? 0;
-      current.orderCount += 1;
-      buckets.set(label, current);
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const rows = await this.odoo.searchRead<SaleOrderRow>('sale.order', this.buildSalesOrderDomain(range), {
+        fields: ['date_order', 'amount_total'],
+        limit: pageSize,
+        offset,
+        order: 'date_order asc, id asc',
+      });
+      for (const row of rows) {
+        const label = this.formatBucketLabel(row.date_order, effectiveGranularity);
+        const current = buckets.get(label) ?? { label, totalAmount: 0, orderCount: 0 };
+        current.totalAmount += row.amount_total ?? 0;
+        current.orderCount += 1;
+        buckets.set(label, current);
+      }
+      if (rows.length < pageSize) break;
     }
 
     return Array.from(buckets.values());
@@ -169,10 +169,21 @@ export class SalesUseCases {
   }
 
   private resolveRange(preset: PeriodPreset, startDate?: string, endDate?: string): SalesDateRange {
+    if (!['month', 'year', 'custom'].includes(preset)) throw new Error('period must be month, year or custom');
+    if (preset !== 'custom' && (startDate || endDate)) {
+      throw new Error('Set period to custom when supplying startDate or endDate');
+    }
     if (preset === 'custom') {
       if (!startDate || !endDate) {
         throw new Error('startDate and endDate are required when preset is custom');
       }
+      for (const value of [startDate, endDate]) {
+        const parsed = new Date(value + 'T00:00:00Z');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+          throw new Error('Dates must be valid calendar dates in YYYY-MM-DD format');
+        }
+      }
+      if (startDate > endDate) throw new Error('startDate must be on or before endDate');
 
       return {
         start: `${startDate} 00:00:00`,
@@ -184,10 +195,10 @@ export class SalesUseCases {
     const now = new Date();
 
     if (preset === 'month') {
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const start = new Date(year, month, 1);
-      const end = new Date(year, month + 1, 0);
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth();
+      const start = new Date(Date.UTC(year, month, 1));
+      const end = new Date(Date.UTC(year, month + 1, 0));
 
       return {
         start: this.toOdooDateTime(start, false),
@@ -196,9 +207,9 @@ export class SalesUseCases {
       };
     }
 
-    const year = now.getFullYear();
-    const start = new Date(year, 0, 1);
-    const end = new Date(year, 11, 31);
+    const year = now.getUTCFullYear();
+    const start = new Date(Date.UTC(year, 0, 1));
+    const end = new Date(Date.UTC(year, 11, 31));
 
     return {
       start: this.toOdooDateTime(start, false),
@@ -208,9 +219,9 @@ export class SalesUseCases {
   }
 
   private toOdooDateTime(date: Date, endOfDay: boolean): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     const time = endOfDay ? '23:59:59' : '00:00:00';
 
     return `${year}-${month}-${day} ${time}`;
@@ -221,11 +232,6 @@ export class SalesUseCases {
       return 'Sin fecha';
     }
 
-    const date = new Date(value.replace(' ', 'T'));
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return granularity === 'month' ? `${year}-${month}` : `${year}-${month}-${day}`;
+    return value.slice(0, granularity === 'month' ? 7 : 10);
   }
 }

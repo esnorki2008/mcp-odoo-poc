@@ -13,7 +13,7 @@
     ".": "./dist/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "agent-inventory": "file:../agent-inventory",
     "express": "^5.2.1"
   },

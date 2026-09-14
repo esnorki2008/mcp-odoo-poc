@@ -8,7 +8,8 @@
     "agent-server"
   ],
   "scripts": {
-    "build": "npm run build --workspace agent-core && npm run build --workspace agent-inventory && npm run build --workspace agent-sales && npm run build --workspace agent-server",
+    "build": "npm run build --workspace agent-inventory && npm run build --workspace agent-core && npm run build --workspace agent-sales --ignore-scripts && npm run build --workspace agent-server --ignore-scripts",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "dev:inventory": "npm run dev --workspace agent-inventory",
     "dev:sales": "npm run dev --workspace agent-sales",
     "dev:server": "npm run dev --workspace agent-server"

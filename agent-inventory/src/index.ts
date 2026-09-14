@@ -10,6 +10,8 @@ export { McpServerAdapter } from './infrastructure/mcp/McpServerAdapter';
 export { registerInventoryTools } from './infrastructure/mcp/registerInventoryTools';
 export * from './domain/entities/types';
 export * from './domain/ports/InventoryPort';
+export { mountMcpEndpoint } from './infrastructure/mcp/mountMcpEndpoint';
+export { toolResult, toolError } from './infrastructure/mcp/toolResult';
 
 export function createInventoryModule(odooAdapter: OdooXmlRpcAdapter) {
   const useCases = new InventoryUseCases(odooAdapter);
