@@ -8,10 +8,10 @@ const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: t
 
 export function registerInventoryTools(server: McpServer, useCases: InventoryUseCases) {
   server.registerTool('search_products', {
-    description: 'Find Odoo products by name or internal reference (default_code). Start here to obtain productId, then call get_stock_levels. Returns at most limit products ordered by ID; a full page may have additional matches, so narrow the query.',
+    description: 'Find Odoo products by name or internal reference (default_code). Use query="%" to list the catalog; empty or whitespace-only queries are rejected. Start here to obtain productId, then call get_stock_levels. Returns at most limit products ordered by ID; a full page may have additional matches, so narrow the query.',
     annotations: readOnly,
     inputSchema: {
-      query: z.string().trim().min(1).describe('Product name or internal reference'),
+      query: z.string().trim().min(1).describe('Product name or internal reference; use "%" to list the catalog'),
       limit: z.number().int().min(1).max(100).default(10).describe('Maximum results, 1–100'),
     },
   }, async ({ query, limit }) => {

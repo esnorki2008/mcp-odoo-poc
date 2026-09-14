@@ -145,6 +145,12 @@ Flujo de inventario:
    `update_stock_quantity({ "productId": 42, "locationId": 8, "quantity": 20 })`.
    La cantidad es absoluta, en la unidad del producto; no se suma al stock actual.
 
+Para revisar todo el catálogo, usar el comodín de Odoo `%`, por ejemplo
+`search_products({ "query": "%", "limit": 100 })`. No usar una cadena vacía ni
+solo espacios: `query` se recorta y la herramienta la rechaza antes de consultar
+Odoo. El resultado incluye `qty_available`; para confirmar el stock físico y las
+reservas del producto encontrado, consultar después `get_stock_levels`.
+
 Los IDs anteriores son ejemplos. Los límites aceptan enteros entre 1 y 100.
 Una búsqueda que llena el límite devuelve `mayHaveMore: true`; se puede precisar
 el nombre o referencia para reducir coincidencias. Los ajustes con varios registros
